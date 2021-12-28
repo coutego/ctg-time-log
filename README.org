@@ -1,23 +1,25 @@
 #+TITLE: Readme
 
 * Introduction
-This package implements some functions to log status changes to a json log file
+This package implements some functions to log status changes to a org "log" file
 and to report on those values.
 It is intented to be used to log time spent in different activities in a quick
 way, without having to explicitly create Org tasks or anything.
 
 This package exists as a way to work around a limitation of my workflow, where I
-need to use different computers and they can't access any common storage or git repository.
+need to use different computers and they can't access any common storage or git
+repository.
 
-With this limitation the only option to use diferent local files to perform the logging without
-continuous synchronization is to make the log system append only and only log the change of states.
-The reporting deduces the times spend on any task/action by taking all the events, sorting them and
-calculating the deltas.
-This data normalization allows us to merge at any point in the future any other log events from other
-machines without need to modify any of the items.
+With this limitation the only option to use diferent local files to perform the
+logging without continuous synchronization is to make the log system append only
+and only log the change of states.
+The reporting deduces the times spend on any task/action by taking all the events,
+sorting them and calculating the deltas.
+This data normalization allows us to merge at any point in the future any other log
+events from other machines without need to modify any of the items.
 The reporting will reconstruct the history taking into account all available information.
-Fixing mistakes is also very simple, just by adding new entries to the log without having to delete
-the old ones (althoug this is also possible).
+Fixing mistakes is also very simple, just by adding new entries to the log without
+having to delete the old ones (although this is also possible).
 
 * Status
 Under development

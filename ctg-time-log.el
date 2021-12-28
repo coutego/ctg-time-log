@@ -27,46 +27,66 @@
 (require 'json)
 (require 'dash)
 (require 'f)
+(require 'ht)
 (require 'org)
+(require 'org-element)
+(require 'evil-commands)
 
 (defmacro comment (&rest _body)) ;; Clojure's comment macro
 
 (defvar ctg-time-log-timestamp-format "%Y.%m.%d - %H:%M:%S:%2N")
 (defvar ctg-time-log-directory (f-join org-directory "ctg-time-log"))
 
-(cl-defun ctg-time-log-add-entry (entry)
+(defun ctg-time-log-add-note ()
+  "Add a note to the current element in the log"
+  (interactive)
+  (let* ((bf (ctg-time-log--current-filename))
+         (b  (find-file bf))
+         (w  (get-buffer-window b)))
+    (with-current-buffer b
+      (goto-char (point-max))
+      (insert "\n** ")
+      (evil-append 1))))
+
+(cl-defun ctg-time-log-add-entry (&rest entry)
   "Add a new entry in the log.
 
-An entry should be a plist with keys :project, :type, :title"
+The arguments should be a plist with keys :project, :type, :title"
   (let ((b (find-file-noselect (ctg-time-log--current-filename))))
-    (save-excursion
-      (with-current-buffer b
-        (fundamental-mode) ; avoid 'magic' inserted by mode hooks
-        (goto-char (point-max))
-        (insert (apply #'ctg-time-log--create-entry entry))
-        (insert "\n\n")
-        (save-buffer)))))
+    (with-current-buffer b
+      (goto-char (point-max))
+      (insert (apply #'ctg-time-log--create-entry entry))
+      (insert "\n\n")
+      (save-buffer)
+      (goto-char (max-char)))))
 
 (cl-defun ctg-time-log--create-entry (&key project type title)
   (let* ((timestamp (format-time-string ctg-time-log-timestamp-format))
-         (entry (list :timestamp timestamp
-                      :project   project
-                      :type      type
-                      :title     title))
-         (json-encoding-pretty-print t))
-    (json-encode entry)))
+         (tags (format ":%s:" type))
+         (props (format ":CTL-TIMESTAMP: %s\n:CTL-PROJECT: %s" timestamp project)))
+    (format "* %s %s\n:PROPERTIES:\n%s\n:END:" title tags props)))
 
 (defun ctg-time-log--current-filename ()
-  (let* ((name (format "%s.json" (format-time-string "%Y-%m-%d")))
+  (let* ((name (format "%s.org" (format-time-string "%Y-%m-%d")))
          (year (format-time-string "%Y"))
          (month (format-time-string "%m")))
     (f-join ctg-time-log-directory year month name)))
 
-(comment
-  (ctg-time-log--create-entry :project "EUCTP" :type "TASK" :title "Review the project plan")
-  (ctg-time-log-add-entry '(:project "EUCTP" :type "TASK" :title "Review the project plan"))
-  (ctg-time-log--current-filename))
+(defun ctg-time-log--parse-buffer (b)
+  (->>
+   (with-current-buffer b (org-element-parse-buffer))
+   (-drop 2)
+   (-map #'cadr)
+   (-map #'ht<-plist)))
 
+;; (defun ctg-time-log--extract-parsed-entry (h)
+;;   (ht-))
+
+(comment
+  (ctg-time-log--create-entry :project "EUCTP" :type "TASK" :title "Review the project plan")j
+  (ctg-time-log-add-entry '(:project "EUCTP" :type "TASK" :title "Review the project plan")))
+
+(seq-into (vector :a 1 :b 2) 'list)
 
 (provide 'ctg-time-log)
 ;;; ctg-time-log.el ends here
