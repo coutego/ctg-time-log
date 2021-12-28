@@ -60,11 +60,32 @@ The arguments should be a plist with keys :project, :type, :title"
       (save-buffer)
       (goto-char (max-char)))))
 
-(cl-defun ctg-time-log--create-entry (&key project type title)
-  (let* ((timestamp (format-time-string ctg-time-log-timestamp-format))
-         (tags (format ":%s:" type))
-         (props (format ":CTL-TIMESTAMP: %s\n:CTL-PROJECT: %s" timestamp project)))
+(cl-defun ctg-time-log--create-entry-props (entry)
+  (->> entry
+       ht<-plist
+       (ht-amap (format ":%s: %s"
+                  (format "CTGTL-%s" (ctg-time-log--keyword-to-string key))
+                  value))
+       (--reduce (s-concat acc "\n" it))))
+
+(defun ctg-time-log--keyword-to-string (key)
+  (->> key
+       (format "%s")
+       (s-chop-prefix ":")
+       upcase))
+
+(cl-defun ctg-time-log--create-entry (&rest entry)
+  (let* ((timestamp (ctg-time-log-create-timestamp))
+         (title     (or (plist-get entry :title)
+                        "Time log entry"))
+         (tags      (or (plist-get entry :tags) ""))
+         (entry     (-concat (list :timestamp timestamp) entry))
+         (props     (ctg-time-log--create-entry-props entry)))
     (format "* %s %s\n:PROPERTIES:\n%s\n:END:" title tags props)))
+
+(defun ctg-time-log-create-timestamp ()
+  "Creates a timestamp to be logged"
+  (format-time-string ctg-time-log-timestamp-format))
 
 (defun ctg-time-log--current-filename ()
   (let* ((name (format "%s.org" (format-time-string "%Y-%m-%d")))
@@ -83,8 +104,10 @@ The arguments should be a plist with keys :project, :type, :title"
 ;;   (ht-))
 
 (comment
-  (ctg-time-log--create-entry :project "EUCTP" :type "TASK" :title "Review the project plan")j
-  (ctg-time-log-add-entry '(:project "EUCTP" :type "TASK" :title "Review the project plan")))
+  (ctg-time-log--create-entry :project "EUCTP" :type "TASK" :title "Review the project plan")
+  (ctg-time-log-add-entry '(:project "EUCTP" :type "TASK" :title "Review the project plan"))
+  (ctg-time-log--create-entry-props :title "My title" :project "project 1"))
+
 
 (seq-into (vector :a 1 :b 2) 'list)
 
