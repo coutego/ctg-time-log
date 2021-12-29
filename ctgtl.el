@@ -72,8 +72,8 @@ The arguments should be a plist with keys :project, :type, :title"
   (->> entry
        ht<-plist
        (ht-amap (format ":%s: %s"
-                  (format "CTGTL-%s" (ctgtl--keyword-to-string key))
-                  value))
+                        (format "CTGTL-%s" (ctgtl--keyword-to-string key))
+                        value))
        (--reduce (s-concat acc "\n" it))))
 
 (defun ctgtl--keyword-to-string (key)
