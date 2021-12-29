@@ -32,8 +32,6 @@
 (require 'org-element)
 (require 'evil-commands)
 
-(defmacro comment (&rest _body)) ;; Clojure's comment macro
-
 (defvar ctgtl-timestamp-format "%Y.%m.%d - %H:%M:%S:%2N")
 (defvar ctgtl-directory (f-join org-directory "ctgtl"))
 
@@ -110,17 +108,7 @@ The arguments should be a plist with keys :project, :type, :title"
    (-map #'cadr)
    (-map #'ht<-plist)))
 
-;; (defun ctgtl--extract-parsed-entry (h)
-;;   (ht-))
-
-(comment
-  (ctgtl--create-entry :project "EUCTP" :type "TASK" :title "Review the project plan")
-  (ctgtl-add-entry '(:project "EUCTP" :type "TASK" :title "Review the project plan"))
-  (ctgtl--create-entry-props :title "My title" :project "project 1"))
-
-
 (seq-into (vector :a 1 :b 2) 'list)
 
 (provide 'ctgtl)
 ;;; ctgtl.el ends here
-;;;
