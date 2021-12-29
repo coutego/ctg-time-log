@@ -1,4 +1,4 @@
-;;; ctg-time-log.el Quick track of time spent on tasks -*- lexical-binding: t; -*-
+;;; ctgtl.el Quick track of time spent on tasks -*- lexical-binding: t; -*-
 ;;
 ;; Copyright (C) 2021 Pedro Abelleira Seco
 ;;
@@ -8,7 +8,7 @@
 ;; Modified: December 27, 2021
 ;; Version: 0.0.1
 ;; Keywords: convenience outlines
-;; Homepage: https://github.com/coutego/ctg-time-log
+;; Homepage: https://github.com/coutego/ctgtl
 ;; Package-Requires: ((emacs "27.1"))
 ;;
 ;; This file is not part of GNU Emacs.
@@ -34,13 +34,23 @@
 
 (defmacro comment (&rest _body)) ;; Clojure's comment macro
 
-(defvar ctg-time-log-timestamp-format "%Y.%m.%d - %H:%M:%S:%2N")
-(defvar ctg-time-log-directory (f-join org-directory "ctg-time-log"))
+(defvar ctgtl-timestamp-format "%Y.%m.%d - %H:%M:%S:%2N")
+(defvar ctgtl-directory (f-join org-directory "ctgtl"))
 
-(defun ctg-time-log-add-note ()
+(defun ctgtl-add-todo ()
+  "Add a todo subheading to the current element in the log"
+  (interactive)
+  (let* ((bf (ctgtl--current-filename))
+         (b  (find-file bf)))
+    (with-current-buffer b
+      (goto-char (point-max))
+      (insert "\n** TODO ")
+      (evil-append 1))))
+
+(defun ctgtl-add-note ()
   "Add a note to the current element in the log"
   (interactive)
-  (let* ((bf (ctg-time-log--current-filename))
+  (let* ((bf (ctgtl--current-filename))
          (b  (find-file bf))
          (w  (get-buffer-window b)))
     (with-current-buffer b
@@ -48,68 +58,69 @@
       (insert "\n** ")
       (evil-append 1))))
 
-(cl-defun ctg-time-log-add-entry (&rest entry)
+(cl-defun ctgtl-add-entry (&rest entry)
   "Add a new entry in the log.
 
 The arguments should be a plist with keys :project, :type, :title"
-  (let ((b (find-file-noselect (ctg-time-log--current-filename))))
+  (let ((b (find-file-noselect (ctgtl--current-filename))))
     (with-current-buffer b
       (goto-char (point-max))
-      (insert (apply #'ctg-time-log--create-entry entry))
+      (insert (apply #'ctgtl--create-entry entry))
       (insert "\n\n")
       (save-buffer)
       (goto-char (max-char)))))
 
-(cl-defun ctg-time-log--create-entry-props (entry)
+(cl-defun ctgtl--create-entry-props (entry)
   (->> entry
        ht<-plist
        (ht-amap (format ":%s: %s"
-                  (format "CTGTL-%s" (ctg-time-log--keyword-to-string key))
+                  (format "CTGTL-%s" (ctgtl--keyword-to-string key))
                   value))
        (--reduce (s-concat acc "\n" it))))
 
-(defun ctg-time-log--keyword-to-string (key)
+(defun ctgtl--keyword-to-string (key)
   (->> key
        (format "%s")
        (s-chop-prefix ":")
        upcase))
 
-(cl-defun ctg-time-log--create-entry (&rest entry)
-  (let* ((timestamp (ctg-time-log-create-timestamp))
+(cl-defun ctgtl--create-entry (&rest entry)
+  (let* ((timestamp (ctgtl-create-timestamp))
          (title     (or (plist-get entry :title)
                         "Time log entry"))
          (tags      (or (plist-get entry :tags) ""))
          (entry     (-concat (list :timestamp timestamp) entry))
-         (props     (ctg-time-log--create-entry-props entry)))
+         (props     (ctgtl--create-entry-props entry)))
     (format "* %s %s\n:PROPERTIES:\n%s\n:END:" title tags props)))
 
-(defun ctg-time-log-create-timestamp ()
+(defun ctgtl-create-timestamp ()
   "Creates a timestamp to be logged"
-  (format-time-string ctg-time-log-timestamp-format))
+  (format-time-string ctgtl-timestamp-format))
 
-(defun ctg-time-log--current-filename ()
+(defun ctgtl--current-filename ()
   (let* ((name (format "%s.org" (format-time-string "%Y-%m-%d")))
          (year (format-time-string "%Y"))
          (month (format-time-string "%m")))
-    (f-join ctg-time-log-directory year month name)))
+    (f-join ctgtl-directory year month name)))
 
-(defun ctg-time-log--parse-buffer (b)
+(defun ctgtl--parse-buffer (b)
   (->>
    (with-current-buffer b (org-element-parse-buffer))
    (-drop 2)
    (-map #'cadr)
    (-map #'ht<-plist)))
 
-;; (defun ctg-time-log--extract-parsed-entry (h)
+;; (defun ctgtl--extract-parsed-entry (h)
 ;;   (ht-))
 
 (comment
-  (ctg-time-log--create-entry :project "EUCTP" :type "TASK" :title "Review the project plan")
-  (ctg-time-log-add-entry '(:project "EUCTP" :type "TASK" :title "Review the project plan"))
-  (ctg-time-log--create-entry-props :title "My title" :project "project 1"))
+  (ctgtl--create-entry :project "EUCTP" :type "TASK" :title "Review the project plan")
+  (ctgtl-add-entry '(:project "EUCTP" :type "TASK" :title "Review the project plan"))
+  (ctgtl--create-entry-props :title "My title" :project "project 1"))
 
 
 (seq-into (vector :a 1 :b 2) 'list)
 
-(provide 'ctg-time-log)
-;;; ctg-time-log.el ends here
+(provide 'ctgtl)
+;;; ctgtl.el ends here
+;;;
