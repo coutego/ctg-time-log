@@ -31,8 +31,9 @@
 (require 'org)
 (require 'org-element)
 (require 'evil-commands)
+(require 'org-ml)
 
-(defvar ctgtl-timestamp-format "%Y.%m.%d - %H:%M:%S:%2N")
+(defvar ctgtl-timestamp-format "%Y-%m-%dT%H:%M:%S.%2N")
 (defvar ctgtl-directory (f-join org-directory "ctgtl"))
 
 (defun ctgtl-add-todo ()
@@ -63,8 +64,9 @@ The arguments should be a plist with keys :project, :type, :title"
   (let ((b (find-file-noselect (ctgtl--current-filename))))
     (with-current-buffer b
       (goto-char (point-max))
-      (insert (apply #'ctgtl--create-entry entry))
       (insert "\n\n")
+      (insert (apply #'ctgtl--create-entry entry))
+      (insert "\n")
       (save-buffer)
       (goto-char (max-char)))))
 
@@ -97,18 +99,31 @@ The arguments should be a plist with keys :project, :type, :title"
 
 (defun ctgtl--current-filename ()
   (let* ((name (format "%s.org" (format-time-string "%Y-%m-%d")))
-         (year (format-time-string "%Y"))
-         (month (format-time-string "%m")))
-    (f-join ctgtl-directory year month name)))
+         (year-month (format-time-string "%Y-%m")))
+    (f-join ctgtl-directory year-month name)))
 
+;; Parse log buffer
 (defun ctgtl--parse-buffer (b)
   (->>
-   (with-current-buffer b (org-element-parse-buffer))
-   (-drop 2)
-   (-map #'cadr)
-   (-map #'ht<-plist)))
+   (with-current-buffer b (org-ml-parse-this-buffer))
+   (org-ml-get-children)
+   (--sort (ctgtl--parse-buffer-timestamp-sorter it other))
+   (--map (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" it))))
 
-(seq-into (vector :a 1 :b 2) 'list)
+(defun ctgtl--parse-buffer-timestamp-sorter (h1 h2)
+  (let ((t1 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" h1))
+        (t2 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" h2)))
+    (string< t1 t2)))
+
+(defun ctgtl--parse-today-buffer ()
+  (-> (ctgtl--current-filename)
+      find-file-noselect
+      ctgtl--parse-buffer))
+
+;; (progn
+;;   (with-temp-buffer-window "**FOO**" nil nil (pp (ctgtl--parse-today-buffer)))
+;;   nil)
 
 (provide 'ctgtl)
 ;;; ctgtl.el ends here
+
