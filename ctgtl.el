@@ -103,18 +103,32 @@ The arguments should be a plist with keys :project, :type, :title"
     (f-join ctgtl-directory year-month name)))
 
 ;; Parse log buffer
+;;
+;;
+
 (defun ctgtl--export-buffer (b)
   (->>
    (with-current-buffer b (org-ml-parse-this-buffer))
    (org-ml-get-children)
    (--sort (ctgtl--parse-buffer-timestamp-sorter it other))
    (-map #'ctgtl--export-csv-row)
-   (--reduce (format "%s\n%s" acc it))))
+   (--reduce (and it (format "%s\n%s" acc it)))))
 
 (defun ctgtl--parse-buffer-timestamp-sorter (h1 h2)
   (let ((t1 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" h1))
         (t2 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" h2)))
     (string< t1 t2)))
+
+;;; CSV export functions
+
+(defun ctgtl-export-csv ()
+  "Exports the logged time to CSV"
+  (interactive)
+  (let ((file   (read-file-name "Select output file: " "~" "export.csv" nil))
+        (period (completing-read "Select period: " '(:today :this-week :this-month :other))))
+    (if (and file period)
+        (ctgtl--export-csv-impl file period)
+      (message "Export cancelled"))))
 
 (defun ctgtl--encode-csv-field (s) (format "\"%s\"" s))
 
@@ -127,14 +141,17 @@ The arguments should be a plist with keys :project, :type, :title"
     (-map #'ctgtl--encode-csv-field)
     (--reduce (format "%s, %s" acc it))))
 
-(defun ctgtl--export-today-buffer ()
-  (-> (ctgtl--current-filename)
-      find-file-noselect
-      ctgtl--export-buffer))
+(defun ctgtl--export-csv-impl (file period)
+  (let ((csv (ctgtl--export-csv-period-to-s period)))
+    (if (and csv (< 0 (length (s-lines csv))))
+        (progn
+          (f-write csv 'utf-8 file)
+          (message (format "Exported %d rows" (length (s-lines csv)))))
+      (message "No data to be exported"))))
 
-(progn
-  (with-temp-buffer-window "**FOO**" nil nil (pp (ctgtl--export-today-buffer)))
-  nil)
+(defun ctgtl--export-csv-period-to-s (_period)
+  (let ((b (find-file-noselect (ctgtl--current-filename))))
+    (ctgtl--export-buffer b))) ;; FIXME: filter by period
 
 (provide 'ctgtl)
 ;;; ctgtl.el ends here
