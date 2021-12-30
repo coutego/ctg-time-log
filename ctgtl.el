@@ -103,26 +103,38 @@ The arguments should be a plist with keys :project, :type, :title"
     (f-join ctgtl-directory year-month name)))
 
 ;; Parse log buffer
-(defun ctgtl--parse-buffer (b)
+(defun ctgtl--export-buffer (b)
   (->>
    (with-current-buffer b (org-ml-parse-this-buffer))
    (org-ml-get-children)
    (--sort (ctgtl--parse-buffer-timestamp-sorter it other))
-   (--map (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" it))))
+   (-map #'ctgtl--export-csv-row)
+   (--reduce (format "%s\n%s" acc it))))
 
 (defun ctgtl--parse-buffer-timestamp-sorter (h1 h2)
   (let ((t1 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" h1))
         (t2 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" h2)))
     (string< t1 t2)))
 
-(defun ctgtl--parse-today-buffer ()
+(defun ctgtl--encode-csv-field (s) (format "\"%s\"" s))
+
+(defun ctgtl--export-csv-row (r)
+  (->>
+    (list (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" r)
+          (org-ml-headline-get-node-property "CTGTL-PROJECT" r)
+          (org-ml-headline-get-node-property "CTGTL-TYPE" r)
+          (org-ml-headline-get-node-property "CTGTL-TITLE" r))
+    (-map #'ctgtl--encode-csv-field)
+    (--reduce (format "%s, %s" acc it))))
+
+(defun ctgtl--export-today-buffer ()
   (-> (ctgtl--current-filename)
       find-file-noselect
-      ctgtl--parse-buffer))
+      ctgtl--export-buffer))
 
-;; (progn
-;;   (with-temp-buffer-window "**FOO**" nil nil (pp (ctgtl--parse-today-buffer)))
-;;   nil)
+(progn
+  (with-temp-buffer-window "**FOO**" nil nil (pp (ctgtl--export-today-buffer)))
+  nil)
 
 (provide 'ctgtl)
 ;;; ctgtl.el ends here
