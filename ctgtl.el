@@ -111,8 +111,21 @@ The arguments should be a plist with keys :project, :type, :title"
    (with-current-buffer b (org-ml-parse-this-buffer))
    (org-ml-get-children)
    (--sort (ctgtl--parse-buffer-timestamp-sorter it other))
+   ((lambda (xs) (-interleave xs (-concat (-drop 1 xs) '(nil)))))
+   (-partition 2)
+   (-map #'ctgtl--calculate-duration)
    (-map #'ctgtl--export-csv-row)
    (--reduce (and it (format "%s\n%s" acc it)))))
+
+(cl-defun ctgtl--calculate-duration (p)
+  (let* ((t1 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" (car p)))
+         (t2 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" (cadr p)))
+         (td (and t2
+                  (time-subtract (parse-time-string t2)
+                                 (parse-time-string t1))))
+         (ft (format "%s" (float-time td))))
+    (org-ml-headline-set-node-property "CTGTL-DURATION" ft (car p))))
+
 
 (defun ctgtl--parse-buffer-timestamp-sorter (h1 h2)
   (let ((t1 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" h1))
@@ -135,6 +148,7 @@ The arguments should be a plist with keys :project, :type, :title"
 (defun ctgtl--export-csv-row (r)
   (->>
     (list (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" r)
+          (org-ml-headline-get-node-property "CTGTL-DURATION" r)
           (org-ml-headline-get-node-property "CTGTL-PROJECT" r)
           (org-ml-headline-get-node-property "CTGTL-TYPE" r)
           (org-ml-headline-get-node-property "CTGTL-TITLE" r))
@@ -155,4 +169,3 @@ The arguments should be a plist with keys :project, :type, :title"
 
 (provide 'ctgtl)
 ;;; ctgtl.el ends here
-
