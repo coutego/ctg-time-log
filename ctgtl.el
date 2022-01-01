@@ -121,9 +121,9 @@ The arguments should be a plist with keys :project, :type, :title"
   (let* ((t1 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" (car p)))
          (t2 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" (cadr p)))
          (td (and t2
-                  (time-subtract (parse-time-string t2)
-                                 (parse-time-string t1))))
-         (ft (format "%s" (float-time td))))
+                  (time-subtract (apply #'encode-time (parse-time-string t2))
+                                 (apply #'encode-time (parse-time-string t1)))))
+         (ft (format "%s" (if td (float-time td) 0))))
     (org-ml-headline-set-node-property "CTGTL-DURATION" ft (car p))))
 
 
