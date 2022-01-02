@@ -140,6 +140,10 @@ The arguments should be a plist with keys :project, :type, :title"
 
 ;;; CSV export
 
+(defun ctgtl-export-csv ()
+  "Starts the export to csv process."
+  (ctgtl-hydra-export/body))
+
 (defhydra ctgtl-hydra-export (:hint none :color blue)
   "
   Chose a time period:
