@@ -32,6 +32,8 @@
 (require 'org-element)
 (require 'evil-commands)
 (require 'org-ml)
+(require 'hydra)
+(require 'ts)
 
 (defvar ctgtl-timestamp-format "%Y-%m-%dT%H:%M:%S.%2N")
 (defvar ctgtl-directory (f-join org-directory "ctgtl"))
@@ -103,19 +105,23 @@ The arguments should be a plist with keys :project, :type, :title"
     (f-join ctgtl-directory year-month name)))
 
 ;; Parse log buffer
-;;
-;;
 
-(defun ctgtl--export-buffer (b)
+(defun ctgtl--export-csv-buffer (b &optional period)
   (->>
    (with-current-buffer b (org-ml-parse-this-buffer))
    (org-ml-get-children)
+   (--filter (ctgtl--filter-headline-period it period))
    (--sort (ctgtl--parse-buffer-timestamp-sorter it other))
    ((lambda (xs) (-interleave xs (-concat (-drop 1 xs) '(nil)))))
    (-partition 2)
    (-map #'ctgtl--calculate-duration)
    (-map #'ctgtl--export-csv-row)
    (--reduce (and it (format "%s\n%s" acc it)))))
+
+(defun ctgtl--filter-headline-period (h period)
+  t) ;; FIXME
+  ;; (-let (((list start end) period)
+  ;;        (timestamp  (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" (car p))))))
 
 (cl-defun ctgtl--calculate-duration (p)
   (let* ((t1 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" (car p)))
@@ -132,13 +138,34 @@ The arguments should be a plist with keys :project, :type, :title"
         (t2 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" h2)))
     (string< t1 t2)))
 
-;;; CSV export functions
+;;; CSV export
 
-(defun ctgtl-export-csv ()
+(defhydra ctgtl-hydra-export (:hint none :color blue)
+  "
+  Chose a time period:
+
+  ^Day^              ^Week^               ^Month^            ^Other
+  ------------------------------------------------------------------------------
+  _dt_: today        _wt_: this week     _mt_: this month   _c_: chose any dates
+  _dy_: yesterday    _wl_: last week     _ml_: last month   _q_: quit
+  _dd_: chose a day  _ww_: chose a week  _mm_: chose month
+
+"
+  ("dt" (ctgtl--export-csv (list (ts-now) (ts-now))))
+  ("dy" nil)
+  ("dd" nil)
+  ("wt" nil)
+  ("mt" nil)
+  ("wl" nil)
+  ("ml" nil)
+  ("ww" nil)
+  ("mm" nil)
+  ("c" nil)
+  ("q" (message "Abort") :exit t))
+
+(defun ctgtl--export-csv (period &optional file)
   "Exports the logged time to CSV"
-  (interactive)
-  (let ((file   (read-file-name "Select output file: " "~" "export.csv" nil))
-        (period (completing-read "Select period: " '(:today :this-week :this-month :other))))
+  (let ((file (or file (read-file-name "Select output file: " "~" "export.csv" nil))))
     (if (and file period)
         (ctgtl--export-csv-impl file period)
       (message "Export cancelled"))))
@@ -147,7 +174,8 @@ The arguments should be a plist with keys :project, :type, :title"
 
 (defun ctgtl--export-csv-row (r)
   (->>
-    (list (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" r)
+    (list (org-ml-headline-get-node-property "CTGTL-ID" r)
+          (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" r)
           (org-ml-headline-get-node-property "CTGTL-DURATION" r)
           (org-ml-headline-get-node-property "CTGTL-PROJECT" r)
           (org-ml-headline-get-node-property "CTGTL-TYPE" r)
@@ -163,9 +191,18 @@ The arguments should be a plist with keys :project, :type, :title"
           (message (format "Exported %d rows" (length (s-lines csv)))))
       (message "No data to be exported"))))
 
-(defun ctgtl--export-csv-period-to-s (_period)
-  (let ((b (find-file-noselect (ctgtl--current-filename))))
-    (ctgtl--export-buffer b))) ;; FIXME: filter by period
+(defun ctgtl--export-csv-period-to-s (period)
+  (let ((fs (ctgtl--find-files-period period)))
+    (with-temp-buffer
+      (--each fs
+        (when (f-exists-p it)
+          (insert-buffer-substring (find-file-noselect it))))
+      (ctgtl--export-csv-buffer (current-buffer) period))))
+
+(defun ctgtl--find-files-period (period) ;; FIXME
+  (-let (((list start end) period))
+    (message (format "start: %s, end: %s" start end))
+    (list (ctgtl--current-filename))))
 
 (provide 'ctgtl)
 ;;; ctgtl.el ends here
