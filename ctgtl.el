@@ -35,7 +35,7 @@
 (require 'hydra)
 (require 'ts)
 
-(defvar ctgtl-timestamp-format "%Y-%m-%dT%H:%M:%S.%2N")
+(defvar ctgtl-timestamp-format "%Y-%m-%d %H:%M:%S.%2N")
 (defvar ctgtl-directory (f-join org-directory "ctgtl"))
 
 (defun ctgtl-add-todo ()
@@ -88,16 +88,23 @@ The arguments should be a plist with keys :project, :type, :title"
 
 (cl-defun ctgtl--create-entry (&rest entry)
   (let* ((timestamp (ctgtl-create-timestamp))
+         (id        (ctgtl--create-id))
          (title     (or (plist-get entry :title)
                         "Time log entry"))
          (tags      (or (plist-get entry :tags) ""))
-         (entry     (-concat (list :timestamp timestamp) entry))
+         (entry     (-concat (list :id id :timestamp timestamp) entry))
          (props     (ctgtl--create-entry-props entry)))
     (format "* %s %s\n:PROPERTIES:\n%s\n:END:" title tags props)))
 
 (defun ctgtl-create-timestamp ()
   "Creates a timestamp to be logged"
   (format-time-string ctgtl-timestamp-format))
+
+(defun ctgtl--create-id ()
+  "Creates a new (unique) entry id."
+  (format "%s%s"
+          (upcase (s-word-initials (s-dashed-words (system-name))))
+          (format-time-string "%Y%m%d%H%M%S%3N")))
 
 (defun ctgtl--current-filename ()
   (let* ((name (format "%s.org" (format-time-string "%Y-%m-%d")))
@@ -119,6 +126,10 @@ The arguments should be a plist with keys :project, :type, :title"
    (--reduce (and it (format "%s\n%s" acc it)))))
 
 (defun ctgtl--filter-headline-period (h period)
+  ;; Get date from period start, set time to 0h00
+  ;; Get date from period end, set time to 23:59:59
+  ;; Get the string representation of both dates
+  ;; Make a simple filter with string comparison
   t) ;; FIXME
   ;; (-let (((list start end) period)
   ;;        (timestamp  (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" (car p))))))
