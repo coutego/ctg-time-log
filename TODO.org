@@ -10,7 +10,7 @@ When one chosen, copy data and add link to previous one.
 - Implement it as nested group-by
 - Add a clock table at the top, as a summary
 - Allow to define the level of detail (summary, items, 2nd level items, all details)
-* TODO Create a classification of tasks
+* DONE Create a classification of tasks
 ** Categories
 *** ACTIVITY
 - MEETING
@@ -21,13 +21,13 @@ When one chosen, copy data and add link to previous one.
 - INTERRUPTION
 - PROCESS-INBOX
 - PROCESS-TASKS
-- *OTHER*
+- *NONE*
 *** AREA
 - CONTRACTS
 - TRAINING
 - ADMIN-HR
 - PROJECTS
-- *OTHER*
+- *NONE*
 *** PROJECT
 - EUCTP
 - CCI
@@ -35,6 +35,6 @@ When one chosen, copy data and add link to previous one.
 - COPIS
 - INF
 - HORIZONTAL
-- *OTHER*
+- *NONE*
 * DONE Add task id
 - Implement it as a function of the timespan
