@@ -1,7 +1,9 @@
 #+TITLE: Todo
 
+* TODO Improve message for ad-hoc task
+- Take into account area, project and activity
 * TODO Implement "return to previous task"
-Implement it as as a menu offering the last break tasks (all but last,
+Implement it as a menu offering the last break tasks (all but last,
 exclude continuations, in reverse order).
 When one chosen, copy data and add link to previous one.
 - Use CTGTL-CONTINUATION-OF to link to previous task
@@ -10,6 +12,7 @@ When one chosen, copy data and add link to previous one.
 - Implement it as nested group-by
 - Add a clock table at the top, as a summary
 - Allow to define the level of detail (summary, items, 2nd level items, all details)
+* DONE Replace nil by "" in CSV export
 * DONE Create a classification of tasks
 ** Categories
 *** ACTIVITY

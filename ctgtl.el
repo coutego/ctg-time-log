@@ -124,7 +124,8 @@ The arguments should be a plist with keys :project, :type, :title"
    (-partition 2)
    (-map #'ctgtl--calculate-duration)
    (-map #'ctgtl--export-csv-row)
-   (--reduce (and it (format "%s\n%s" acc it)))))
+   (--reduce-from (and it (format "%s\n%s" acc it))
+                  "ID, TIMESTAMP,DURATION, PROJECT, AREA, ACTIVITY, TITLE")))
 
 (defun ctgtl--filter-headline-period (h period)
   ;; Get date from period start, set time to 0h00
@@ -186,7 +187,7 @@ The arguments should be a plist with keys :project, :type, :title"
         (ctgtl--export-csv-impl file period)
       (message "Export cancelled"))))
 
-(defun ctgtl--encode-csv-field (s) (format "\"%s\"" s))
+(defun ctgtl--encode-csv-field (s) (format "\"%s\"" (or s "")))
 
 (defun ctgtl--export-csv-row (r)
   (->>
@@ -194,7 +195,8 @@ The arguments should be a plist with keys :project, :type, :title"
           (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" r)
           (org-ml-headline-get-node-property "CTGTL-DURATION" r)
           (org-ml-headline-get-node-property "CTGTL-PROJECT" r)
-          (org-ml-headline-get-node-property "CTGTL-TYPE" r)
+          (org-ml-headline-get-node-property "CTGTL-AREA" r)
+          (org-ml-headline-get-node-property "CTGTL-ACTIVITY" r)
           (org-ml-headline-get-node-property "CTGTL-TITLE" r))
     (-map #'ctgtl--encode-csv-field)
     (--reduce (format "%s, %s" acc it))))
