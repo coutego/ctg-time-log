@@ -75,9 +75,10 @@ The arguments should be a plist with keys :project, :type, :title"
 (cl-defun ctgtl--create-entry-props (entry)
   (->> entry
        ht<-plist
-       (ht-amap (format ":%s: %s"
-                        (format "CTGTL-%s" (ctgtl--keyword-to-string key))
-                        value))
+       (ht-amap (when value
+                  (format ":%s: %s"
+                          (format "CTGTL-%s" (ctgtl--keyword-to-string key))
+                          value)))
        (--reduce (s-concat acc "\n" it))))
 
 (defun ctgtl--keyword-to-string (key)
