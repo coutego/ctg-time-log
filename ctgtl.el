@@ -106,7 +106,8 @@ The arguments should be a plist with keys :project, :type, :title"
          (body      (-if-let (body (plist-get entry :body)) body ""))
          (entry     (-concat (list :id id :timestamp timestamp) entry))
          (props     (ctgtl--create-entry-props entry)))
-    (format "* %s %s\n:PROPERTIES:\n%s\n:END:\n%s\n" title tags props body)))
+    ;; FIXME: check how many \n do we need to add bellow
+    (format "* %s %s\n:PROPERTIES:\n%s\n:END:%s" title tags props body)))
 
 (defun ctgtl-create-timestamp ()
   "Creates a timestamp to be logged"
@@ -139,13 +140,18 @@ The arguments should be a plist with keys :project, :type, :title"
                   (s-join ", " fields))))
 
 (defun ctgtl--filter-headline-period (h period)
-  ;; Get date from period start, set time to 0h00
-  ;; Get date from period end, set time to 23:59:59
-  ;; Get the string representation of both dates
-  ;; Make a simple filter with string comparison
-  t) ;; FIXME
-  ;; (-let (((list start end) period)
-  ;;        (timestamp  (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" (car p))))))
+  (if period
+      (-let [(start end) period]
+        (let* ((start (ts-apply :hour 0 :minute 0 :second 0 start))
+               (end   (ts-apply :hour 23 :minute 59 :second 59.999 end))
+               (time  (if-let ((tm (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" h)))
+                          (ts-parse tm)
+                        nil)))
+          (ts-format start);;
+          (ts-format end)  ;; FIXME: remove
+          (ts-format time) ;;
+          (and time (ts<= start time) (ts>= end time))))
+    t)) ;; else t
 
 (cl-defun ctgtl--calculate-duration (p)
   (let* ((t1 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" (car p)))
@@ -185,7 +191,7 @@ The arguments should be a plist with keys :project, :type, :title"
     (if (and csv (< 0 (length (s-lines csv))))
         (progn
           (f-write csv 'utf-8 file)
-          (message (format "Exported %d rows" (length (s-lines csv)))))
+          (message (format "Exported %d rows" (1- (length (s-lines csv))))))
       (message "No data to be exported"))))
 
 (defun ctgtl--export-csv-period-to-s (fields period)
