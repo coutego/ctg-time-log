@@ -60,7 +60,7 @@
       (evil-append 1))))
 
 (defun ctgtl-go-current()
-  "Go to the current task."
+  "Go to the current task (end of the log file)."
   (interactive)
   (let* ((bf (ctgtl--current-filename))
          (b  (find-file bf))
@@ -71,7 +71,7 @@
 (cl-defun ctgtl-add-entry (&rest entry)
   "Add a new entry in the log.
 
-The arguments should be a plist with keys :project, :type, :title"
+The arguments should be a plist with keys :project, :type, :title."
   (let ((b (find-file-noselect (ctgtl--current-filename))))
     (with-current-buffer b
       (goto-char (point-max))
@@ -82,6 +82,7 @@ The arguments should be a plist with keys :project, :type, :title"
       (goto-char (max-char)))))
 
 (cl-defun ctgtl--create-entry-props (entry)
+  "Create the properties section for a given entry."
   (->> entry
        ht<-plist
        ((lambda (x) (ht-remove x :body) x)) ; remove :body from the properties
@@ -92,12 +93,14 @@ The arguments should be a plist with keys :project, :type, :title"
        (--reduce (s-concat acc "\n" it))))
 
 (defun ctgtl--keyword-to-string (key)
+  "Convert a key to a string (upper case, without the ':')."
   (->> key
        (format "%s")
        (s-chop-prefix ":")
        upcase))
 
 (cl-defun ctgtl--create-entry (&rest entry)
+  "Create an entry from the given list of properties."
   (let* ((timestamp (ctgtl-create-timestamp))
          (id        (ctgtl--create-id))
          (title     (or (plist-get entry :title)
@@ -106,40 +109,29 @@ The arguments should be a plist with keys :project, :type, :title"
          (body      (-if-let (body (plist-get entry :body)) body ""))
          (entry     (-concat (list :id id :timestamp timestamp) entry))
          (props     (ctgtl--create-entry-props entry)))
-    ;; FIXME: check how many \n do we need to add bellow
+    ;; FIXME: check how many \n do we need to add below
     (format "* %s %s\n:PROPERTIES:\n%s\n:END:%s" title tags props body)))
 
 (defun ctgtl-create-timestamp ()
-  "Creates a timestamp to be logged"
+  "Create a timestamp to be logged."
   (format-time-string ctgtl-timestamp-format))
 
 (defun ctgtl--create-id ()
-  "Creates a new (unique) entry id."
+  "Create a new (unique) entry id."
   (format "%s%s"
           (upcase (s-word-initials (s-dashed-words (system-name))))
           (format-time-string "%Y%m%d%H%M%S%3N")))
 
 (defun ctgtl--current-filename ()
+  "Return the filename for the current log file."
   (let* ((name (format "%s.org" (format-time-string "%Y-%m-%d")))
          (year-month (format-time-string "%Y-%m")))
     (f-join ctgtl-directory year-month name)))
 
-;; Parse log buffer
-
-(defun ctgtl--export-csv-buffer (b fields &optional period)
-  (->>
-   (with-current-buffer b (org-ml-parse-this-buffer))
-   (org-ml-get-children)
-   (--filter (ctgtl--filter-headline-period it period))
-   (--sort (ctgtl--parse-buffer-timestamp-sorter it other))
-   ((lambda (xs) (-interleave xs (-concat (-drop 1 xs) '(nil)))))
-   (-partition 2)
-   (-map #'ctgtl--calculate-duration)
-   (--map (ctgtl--export-csv-row fields it))
-   (--reduce-from (and it (format "%s\n%s" acc it))
-                  (s-join ", " fields))))
-
 (defun ctgtl--filter-headline-period (h period)
+  "Filter function for headlines and a given period.
+
+Return t if the heading H is inside PERIOD."
   (if period
       (-let [(start end) period]
         (let* ((start (ts-apply :hour 0 :minute 0 :second 0 start))
@@ -154,6 +146,7 @@ The arguments should be a plist with keys :project, :type, :title"
     t)) ;; else t
 
 (cl-defun ctgtl--calculate-duration (p)
+  "Calculate duration of a given period P."
   (let* ((t1 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" (car p)))
          (t2 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" (cadr p)))
          (td (and t2
@@ -162,49 +155,116 @@ The arguments should be a plist with keys :project, :type, :title"
          (ft (format "%s" (if td (float-time td) 0))))
     (org-ml-headline-set-node-property "CTGTL-DURATION" ft (car p))))
 
-
 (defun ctgtl--parse-buffer-timestamp-sorter (h1 h2)
+  "Sort function for headings, based on their timestamps.
+
+Return t if h2 is posterior to h1"
   (let ((t1 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" h1))
         (t2 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" h2)))
     (string< t1 t2)))
 
-;;; CSV export
+;;; Org export
+(defun ctgtl-export-org (period groups &optional file)
+  "Export the logged time to CSV.
 
-(defun ctgtl-export-csv (period fields &optional file)
-  "Exports the logged time to CSV"
-  (let ((file (or file (read-file-name "Select output file: " "~" "export.csv" nil))))
+PERIOD is a list of two elements corresponding to the start and end dates.
+These two elements must be dates generated with the ts library.
+GROUPS is a list of criteria to group the results by. Each of the elements
+of GROUPS must be either a string or a cons cell with a string describing
+the group as the first element and a function that, given an element, gives
+the value to group by."
+  (let ((file (or file (read-file-name "Select output file: " "~" "export.org" nil))))
     (if (and file period)
-        (ctgtl--export-csv-impl file fields period)
+        (message "Wrote %s lines"
+                 (or (ctgtl--export-org-impl file groups period)
+                     0))
       (message "Export cancelled"))))
 
-(defun ctgtl--encode-csv-field (s) (format "\"%s\"" (or s "")))
+(defun ctgtl--export-org-impl (file groups period)
+  "Export the log entries for the given PERIOD to FILE, grouped as GROUPS.
+Return the number of lines written to the file"
+  (->> (ctgtl--get-entries-period period)
+       (ctgtl--group-entries groups)
+       (ctgtl--grouped-entries-to-org-text)
+       (ctgtl--write-file file)))
 
-(defun ctgtl--export-csv-row (fields r)
-  (->> fields
-       (--map (format "CTGTL-%s" it))
-       (--map (org-ml-headline-get-node-property it r))
-       (-map #'ctgtl--encode-csv-field  )
-       (--reduce (format "%s, %s" acc it))))
+(defun ctgtl--get-entries-period (period)
+  "Return all the log entries for the given PERIOD, as headlines."
+  (->> period
+       (ctgtl--find-files-period)
+       (ctgtl--concatenate-file-contents)
+       (ctgtl--org-string-to-headlines)))
+
+(defun ctgtl--org-string-to-headlines (s)
+  "Parse the string s and return a list of headlines."
+  (with-temp-buffer
+    (insert s)
+    (org-ml-parse-headlines 'all)))
+
+(defun ctgtl--find-files-period (_period)
+  "Find the log files for the given period.
+
+FIXME the current implementation returns all files, which is wasteful."
+  (f-files ctgtl-directory (lambda (f) (s-ends-with-p ".org" f)) t))
+
+(defun ctgtl--concatenate-file-contents (files)
+  "Concatenate the content of the FILES on a single string."
+  (with-temp-buffer
+    (--each files
+      (when (f-exists-p it)
+        (insert-buffer-substring (find-file-noselect it))))
+    (buffer-string)))
+
+(defun ctgtl--group-entries (_groups entries)
+  "Group the entries by the given GROUPS.
+
+FIXME: this is not currently implemented."
+  entries)
+
+(defun ctgtl--grouped-entries-to-org-text (entries)
+  (org-ml-to-string entries))
+
+(defun ctgtl--write-file (file text)
+  "Write the TEXT to the given FILE, returning the number of rows written."
+  (f-write-text text 'utf-8 file)
+  (-> text (s-lines) (length)))
+
+;;; CSV export
+(defun ctgtl-export-csv (period fields &optional file)
+  "Export the logged time to CSV.
+PERIOD is a time record from the ts package
+FIELDS is a list of string with the names of the fields to be
+exported (don't add the 'CTGL' prefix)
+If FILE is not specified, the user will be prompted for one"
+  (let ((file (or file (read-file-name "Select output file: " "~" "export.csv" nil))))
+    (if (and file period)
+        (message "%s records written"
+                 (or
+                  (ctgtl--export-csv-impl file fields period)
+                  0))
+      (message "Export cancelled"))))
 
 (defun ctgtl--export-csv-impl (file fields period)
-  (let ((csv (ctgtl--export-csv-period-to-s fields period)))
-    (if (and csv (< 0 (length (s-lines csv))))
-        (progn
-          (f-write csv 'utf-8 file)
-          (message (format "Exported %d rows" (1- (length (s-lines csv))))))
-      (message "No data to be exported"))))
+  (->> (ctgtl--get-entries-period period)
+       (ctgtl--entries-to-csv fields)
+       (ctgtl--write-file file)))
 
-(defun ctgtl--export-csv-period-to-s (fields period)
-  (let ((fs (ctgtl--find-files-period period)))
-    (with-temp-buffer
-      (--each fs
-        (when (f-exists-p it)
-          (insert-buffer (find-file-noselect it))))
-      (ctgtl--export-csv-buffer (current-buffer) fields period))))
+(defun ctgtl--entries-to-csv (fields entries)
+  "Transform a list of entries to a CSV string (with headlines and newlines)"
+  (->> entries
+       (--map (ctgtl--entry-to-csv it fields))
+       (-concat (list (s-join ", " fields)))
+       (s-join "\n")))
 
-(defun ctgtl--find-files-period (period)
-  ;; FIXME: filter out filenames that we are not interested in TODO
-  (f-files ctgtl-directory (lambda (f) (s-ends-with-p ".org" f)) t))
+(defun ctgtl--entry-to-csv (entry fields)
+  "Convert a entry (headline) to a csv row (as a string without newline)"
+  (->> fields
+       (--map (format "CTGTL-%s" it))
+       (--map (org-ml-headline-get-node-property it entry))
+       (-map #'ctgtl--encode-csv-field)
+       (--reduce (format "%s, %s" acc it))))
+
+(defun ctgtl--encode-csv-field (s) (format "\"%s\"" (or s "")))
 
 (provide 'ctgtl)
 ;;; ctgtl.el ends here
