@@ -125,7 +125,7 @@ The arguments should be a plist with keys :project, :type, :title"
 
 ;; Parse log buffer
 
-(defun ctgtl--export-csv-buffer (b &optional period)
+(defun ctgtl--export-csv-buffer (b fields &optional period)
   (->>
    (with-current-buffer b (org-ml-parse-this-buffer))
    (org-ml-get-children)
@@ -134,9 +134,9 @@ The arguments should be a plist with keys :project, :type, :title"
    ((lambda (xs) (-interleave xs (-concat (-drop 1 xs) '(nil)))))
    (-partition 2)
    (-map #'ctgtl--calculate-duration)
-   (-map #'ctgtl--export-csv-row)
+   (--map (ctgtl--export-csv-row fields it))
    (--reduce-from (and it (format "%s\n%s" acc it))
-                  "ID, TIMESTAMP,DURATION, PROJECT, AREA, ACTIVITY, TITLE")))
+                  (s-join ", " fields))))
 
 (defun ctgtl--filter-headline-period (h period)
   ;; Get date from period start, set time to 0h00
@@ -164,72 +164,40 @@ The arguments should be a plist with keys :project, :type, :title"
 
 ;;; CSV export
 
-(defun ctgtl-export-csv ()
-  "Starts the export to csv process."
-  (ctgtl-hydra-export/body))
-
-(defhydra ctgtl-hydra-export (:hint none :color blue)
-  "
-  Chose a time period:
-
-  ^Day^              ^Week^               ^Month^            ^Other
-  ------------------------------------------------------------------------------
-  _dt_: today        _wt_: this week     _mt_: this month   _c_: chose any dates
-  _dy_: yesterday    _wl_: last week     _ml_: last month   _q_: quit
-  _dd_: chose a day  _ww_: chose a week  _mm_: chose month
-
-"
-  ("dt" (ctgtl--export-csv (list (ts-now) (ts-now))))
-  ("dy" nil)
-  ("dd" nil)
-  ("wt" nil)
-  ("mt" nil)
-  ("wl" nil)
-  ("ml" nil)
-  ("ww" nil)
-  ("mm" nil)
-  ("c" nil)
-  ("q" (message "Abort") :exit t))
-
-(defun ctgtl--export-csv (period &optional file)
+(defun ctgtl-export-csv (period fields &optional file)
   "Exports the logged time to CSV"
   (let ((file (or file (read-file-name "Select output file: " "~" "export.csv" nil))))
     (if (and file period)
-        (ctgtl--export-csv-impl file period)
+        (ctgtl--export-csv-impl file fields period)
       (message "Export cancelled"))))
 
 (defun ctgtl--encode-csv-field (s) (format "\"%s\"" (or s "")))
 
-(defun ctgtl--export-csv-row (r)
-  (->>
-    (list (org-ml-headline-get-node-property "CTGTL-ID" r)
-          (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" r)
-          (org-ml-headline-get-node-property "CTGTL-DURATION" r)
-          (org-ml-headline-get-node-property "CTGTL-PROJECT" r)
-          (org-ml-headline-get-node-property "CTGTL-AREA" r)
-          (org-ml-headline-get-node-property "CTGTL-ACTIVITY" r)
-          (org-ml-headline-get-node-property "CTGTL-TITLE" r))
-    (-map #'ctgtl--encode-csv-field)
-    (--reduce (format "%s, %s" acc it))))
+(defun ctgtl--export-csv-row (fields r)
+  (->> fields
+       (--map (format "CTGTL-%s" it))
+       (--map (org-ml-headline-get-node-property it r))
+       (-map #'ctgtl--encode-csv-field  )
+       (--reduce (format "%s, %s" acc it))))
 
-(defun ctgtl--export-csv-impl (file period)
-  (let ((csv (ctgtl--export-csv-period-to-s period)))
+(defun ctgtl--export-csv-impl (file fields period)
+  (let ((csv (ctgtl--export-csv-period-to-s fields period)))
     (if (and csv (< 0 (length (s-lines csv))))
         (progn
           (f-write csv 'utf-8 file)
           (message (format "Exported %d rows" (length (s-lines csv)))))
       (message "No data to be exported"))))
 
-(defun ctgtl--export-csv-period-to-s (period)
+(defun ctgtl--export-csv-period-to-s (fields period)
   (let ((fs (ctgtl--find-files-period period)))
     (with-temp-buffer
       (--each fs
         (when (f-exists-p it)
           (insert-buffer-substring (find-file-noselect it))))
-      (ctgtl--export-csv-buffer (current-buffer) period))))
+      (ctgtl--export-csv-buffer (current-buffer) fields period))))
 
 (defun ctgtl--find-files-period (period) ;; FIXME
-  (-let (((list start end) period))
+  (-let (((start end) period))
     (message (format "start: %s, end: %s" start end))
     (list (ctgtl--current-filename))))
 
