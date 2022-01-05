@@ -59,6 +59,15 @@
       (insert "\n** ")
       (evil-append 1))))
 
+(defun ctgtl-go-current()
+  "Go to the current task."
+  (interactive)
+  (let* ((bf (ctgtl--current-filename))
+         (b  (find-file bf))
+         (w  (get-buffer-window b)))
+    (with-current-buffer b
+      (goto-char (point-max)))))
+
 (cl-defun ctgtl-add-entry (&rest entry)
   "Add a new entry in the log.
 
