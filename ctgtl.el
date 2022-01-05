@@ -199,13 +199,12 @@ The arguments should be a plist with keys :project, :type, :title"
     (with-temp-buffer
       (--each fs
         (when (f-exists-p it)
-          (insert-buffer-substring (find-file-noselect it))))
+          (insert-buffer (find-file-noselect it))))
       (ctgtl--export-csv-buffer (current-buffer) fields period))))
 
-(defun ctgtl--find-files-period (period) ;; FIXME
-  (-let (((start end) period))
-    (message (format "start: %s, end: %s" start end))
-    (list (ctgtl--current-filename))))
+(defun ctgtl--find-files-period (period)
+  ;; FIXME: filter out filenames that we are not interested in TODO
+  (f-files ctgtl-directory (lambda (f) (s-ends-with-p ".org" f)) t))
 
 (provide 'ctgtl)
 ;;; ctgtl.el ends here
