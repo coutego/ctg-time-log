@@ -84,6 +84,7 @@ The arguments should be a plist with keys :project, :type, :title"
 (cl-defun ctgtl--create-entry-props (entry)
   (->> entry
        ht<-plist
+       ((lambda (x) (ht-remove x :body) x)) ; remove :body from the properties
        (ht-amap (when value
                   (format ":%s: %s"
                           (format "CTGTL-%s" (ctgtl--keyword-to-string key))
@@ -102,9 +103,10 @@ The arguments should be a plist with keys :project, :type, :title"
          (title     (or (plist-get entry :title)
                         "Time log entry"))
          (tags      (or (plist-get entry :tags) ""))
+         (body      (-if-let (body (plist-get entry :body)) body ""))
          (entry     (-concat (list :id id :timestamp timestamp) entry))
          (props     (ctgtl--create-entry-props entry)))
-    (format "* %s %s\n:PROPERTIES:\n%s\n:END:" title tags props)))
+    (format "* %s %s\n:PROPERTIES:\n%s\n:END:\n%s\n" title tags props body)))
 
 (defun ctgtl-create-timestamp ()
   "Creates a timestamp to be logged"
