@@ -90,7 +90,7 @@ The arguments should be a plist with keys :project, :type, :title."
                   (format ":%s: %s"
                           (format "CTGTL-%s" (ctgtl--keyword-to-string key))
                           value)))
-       (--reduce (s-concat acc "\n" it))))
+       (--reduce (if it (s-concat acc "\n" it) acc))))
 
 (defun ctgtl--keyword-to-string (key)
   "Convert a key to a string (upper case, without the ':')."
