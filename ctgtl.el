@@ -266,5 +266,35 @@ If FILE is not specified, the user will be prompted for one"
 
 (defun ctgtl--encode-csv-field (s) (format "\"%s\"" (or s "")))
 
+;;; Data access functions
+(defun ctgtl-get-logs (period)
+  "Return the logged entries for the given period, as a list of hashes.
+
+"
+  (->> (ctgtl--get-entries-period period)
+       (--filter (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" it))
+       (--sort (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" it))
+       (--map (ctgtl--entry-to-log-ht it))
+       (-map #'ht<-plist)))
+
+(defun ctgtl--entry-to-log-ht (entry)
+  "Convert a (parsed) entry into a log structure.
+
+A log strucgure is a plist where the keys are :title and :props, the second one
+being a hashtable with the properties"
+  (list :title
+        (org-ml-to-trimmed-string (car (org-ml-get-property :title entry)))
+        :props
+        (->> (org-ml-headline-get-node-properties entry)
+             (--reduce-from
+              (progn
+                (let* ((ob (cadr it))
+                       (k  (plist-get ob :key))
+                       (v  (plist-get ob :value)))
+                  (when (s-prefix-p "CTGTL-" k)
+                    (ht-set acc (seq-drop k (length "CTGTL-")) v))
+                  acc))
+              (ht-create)))))
+
 (provide 'ctgtl)
 ;;; ctgtl.el ends here
