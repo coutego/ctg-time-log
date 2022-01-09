@@ -24,7 +24,6 @@
 ;;; Code:
 
 (require 'cl-lib)
-(require 'json)
 (require 'dash)
 (require 'f)
 (require 'ht)
