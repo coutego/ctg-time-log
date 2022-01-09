@@ -193,7 +193,17 @@ Return the number of lines written to the file"
   (->> period
        (ctgtl--find-files-period)
        (ctgtl--concatenate-file-contents)
-       (ctgtl--org-string-to-headlines)))
+       (ctgtl--org-string-to-headlines)
+       (--filter (ctgtl--timestamp-in-period-p
+                  (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" it)
+                  period))))
+
+(defun ctgtl--timestamp-in-period-p (timestamp period)
+  "Checks if the string TIMESTAMP falls in the indicated PERIOD (a list)."
+  (let* ((start (ts-apply :hour 0 :minute 0 :second 0 (car period)))
+         (end   (ts-apply :hour 23 :minute 59 :second 59.999 (cadr period)))
+         (ti     (ts-parse timestamp)))
+    (and (ts<= start ti) (ts>= end ti))))
 
 (defun ctgtl--org-string-to-headlines (s)
   "Parse the string s and return a list of headlines."
@@ -273,17 +283,22 @@ If FILE is not specified, the user will be prompted for one"
 "
   (->> (ctgtl--get-entries-period period)
        (--filter (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" it))
-       (--sort (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" it))
+       (--sort (ts<= (ts-parse (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" it))
+                     (ts-parse (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" other))))
        (--map (ctgtl--entry-to-log-ht it))
        (-map #'ht<-plist)))
 
 (defun ctgtl--entry-to-log-ht (entry)
   "Convert a (parsed) entry into a log structure.
 
-A log strucgure is a plist where the keys are :title and :props, the second one
-being a hashtable with the properties"
-  (list :title
+A log strucgure is a plist where the keys are :id :title and :props.
+:props is a hashtable with the properties"
+  (list :id
+        (->> (org-ml-headline-get-node-property "CTGTL-ID" entry))
+
+        :title
         (org-ml-to-trimmed-string (car (org-ml-get-property :title entry)))
+
         :props
         (->> (org-ml-headline-get-node-properties entry)
              (--reduce-from
