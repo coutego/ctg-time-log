@@ -310,19 +310,25 @@ A log strucgure is a plist where the keys are :id :title and :props.
                   acc))
               (ht-create)))))
 
-(defun ctgtl-util--completing-read (prompt obs to-str)
+(defun ctgtl-util--completing-read (prompt obs &optional to-str)
   "Like completing-read, but allow the user to select arbitrary items.
 
 OBS must be a seq of arbitrary things of any type T.
 TO-STR is a function that takes a thing of type T and returns a string
 to show the user."
-  (-let* ((ss (--map (funcall to-str it) obs))
-          (h  (ht<-alist (--map (cons (funcall to-str it) it) obs)))
-          (c  (completing-read prompt ss))
-          (r  (ht-get h c)))
-    (when (not r)
-      (error "No valid item was chosen"))
-    r))
+  (let* ((ts (or to-str (lambda (x) x)))
+         (ss (--map (funcall ts it) obs))
+         (h  (ht<-alist (--map (cons (funcall ts it) it) obs)))
+         (ip (when (boundp ivy-prescient-mode) (default-value ivy-prescient-mode))))
+    (unwind-protect
+        (progn
+          (when ip ;; if ivy-prescient-mode is not bound ip will be nil
+            (ivy-prescient-mode -1))
+          (ht-get h (completing-read prompt ss)))
+      (when ip
+        (ivy-prescient-mode))))) ;; idem
 
 (provide 'ctgtl)
 ;;; ctgtl.el ends here
+
+(ctgtl-util--completing-read "Select project: " ctgwf-projects)
