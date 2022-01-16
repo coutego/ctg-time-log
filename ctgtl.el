@@ -109,7 +109,7 @@ The arguments should be a plist with keys :project, :type, :title."
          (entry     (-concat (list :id id :timestamp timestamp) entry))
          (props     (ctgtl--create-entry-props entry)))
     ;; FIXME: check how many \n do we need to add below
-    (format "* %s %s\n:PROPERTIES:\n%s\n:END:%s" title tags props body)))
+    (format "* %s %s\n:PROPERTIES:\n%s\n:END:\n%s" title tags props body)))
 
 (defun ctgtl-create-timestamp ()
   "Create a timestamp to be logged."
