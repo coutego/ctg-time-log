@@ -310,5 +310,19 @@ A log strucgure is a plist where the keys are :id :title and :props.
                   acc))
               (ht-create)))))
 
+(defun ctgtl-util--completing-read (prompt obs to-str)
+  "Like completing-read, but allow the user to select arbitrary items.
+
+OBS must be a seq of arbitrary things of any type T.
+TO-STR is a function that takes a thing of type T and returns a string
+to show the user."
+  (-let* ((ss (--map (funcall to-str it) obs))
+          (h  (ht<-alist (--map (cons (funcall to-str it) it) obs)))
+          (c  (completing-read prompt ss))
+          (r  (ht-get h c)))
+    (when (not r)
+      (error "No valid item was chosen"))
+    r))
+
 (provide 'ctgtl)
 ;;; ctgtl.el ends here
