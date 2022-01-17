@@ -201,7 +201,7 @@ Return the number of lines written to the file"
   "Checks if the string TIMESTAMP falls in the indicated PERIOD (a list)."
   (let* ((start (ts-apply :hour 0 :minute 0 :second 0 (car period)))
          (end   (ts-apply :hour 23 :minute 59 :second 59.999 (cadr period)))
-         (ti     (ts-parse timestamp)))
+         (ti    (ts-parse (or timestamp ""))))
     (and (ts<= start ti) (ts>= end ti))))
 
 (defun ctgtl--org-string-to-headlines (s)
@@ -310,7 +310,7 @@ A log strucgure is a plist where the keys are :id :title and :props.
                   acc))
               (ht-create)))))
 
-(defun ctgtl-util--completing-read (prompt obs &optional to-str)
+(defun ctgtl-util-completing-read (prompt obs &optional to-str)
   "Like completing-read, but allow the user to select arbitrary items.
 
 OBS must be a seq of arbitrary things of any type T.
@@ -331,4 +331,3 @@ to show the user."
 (provide 'ctgtl)
 ;;; ctgtl.el ends here
 
-(ctgtl-util--completing-read "Select project: " ctgwf-projects)
