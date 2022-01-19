@@ -164,7 +164,7 @@ Return t if h2 is posterior to h1"
 
 ;;; Org export
 (defun ctgtl-export-org (period groups &optional file)
-  "Export the logged time to CSV.
+  "Export the logged time to ORG.
 
 PERIOD is a list of two elements corresponding to the start and end dates.
 These two elements must be dates generated with the ts library.
@@ -196,6 +196,14 @@ Return the number of lines written to the file"
        (--filter (ctgtl--timestamp-in-period-p
                   (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" it)
                   period))))
+
+(defun ctgtl--get-entries-period-with-duration (period)
+  "Same as ctgtl--get-entries-period, but it add duration to the header"
+  (->> (ctgtl--get-entries-period period)
+       (-sort #'ctgtl--parse-buffer-timestamp-sorter)
+       ((lambda (xs) (-interleave xs (cdr xs))))
+       (-partition 2)
+       (-map #'ctgtl--calculate-duration)))
 
 (defun ctgtl--timestamp-in-period-p (timestamp period)
   "Checks if the string TIMESTAMP falls in the indicated PERIOD (a list)."
@@ -254,7 +262,7 @@ If FILE is not specified, the user will be prompted for one"
       (message "Export cancelled"))))
 
 (defun ctgtl--export-csv-impl (file fields period)
-  (->> (ctgtl--get-entries-period period)
+  (->> (ctgtl--get-entries-period-with-duration period)
        (ctgtl--entries-to-csv fields)
        (ctgtl--write-file file)))
 
