@@ -285,38 +285,38 @@ If FILE is not specified, the user will be prompted for one"
 
 ;;; Data access functions
 (defun ctgtl-get-logs (period)
-  "Return the logged entries for the given period, as a list of hashes.
+  "Return the logged entries for the given period, as a list of tables.
 
 "
   (->> (ctgtl--get-entries-period period)
        (--filter (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" it))
        (--sort (ts<= (ts-parse (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" it))
                      (ts-parse (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" other))))
-       (--map (ctgtl--entry-to-log-ht it))
-       (-map #'ht<-plist)))
+       (--map (ctgtl--entry-to-log-ht it))))
 
 (defun ctgtl--entry-to-log-ht (entry)
-  "Convert a (parsed) entry into a log structure.
+  "Transform a raw org-ml entry into a hash with all the CTGTL-*
+properties."
+  (let ((ret (ht-create)))
+    (-reduce-from #'ctgtl--entry-to-log-ht--reducer
+                  ret
+                  (org-ml-headline-get-node-properties entry))
+    (ht-set ret :title (org-ml-to-trimmed-string (car (org-ml-get-property :title entry))))
+    (ht-set ret :ctgtl--raw-prop entry)
+    ret))
 
-A log strucgure is a plist where the keys are :id :title and :props.
-:props is a hashtable with the properties"
-  (list :id
-        (->> (org-ml-headline-get-node-property "CTGTL-ID" entry))
-
-        :title
-        (org-ml-to-trimmed-string (car (org-ml-get-property :title entry)))
-
-        :props
-        (->> (org-ml-headline-get-node-properties entry)
-             (--reduce-from
-              (progn
-                (let* ((ob (cadr it))
-                       (k  (plist-get ob :key))
-                       (v  (plist-get ob :value)))
-                  (when (s-prefix-p "CTGTL-" k)
-                    (ht-set acc (seq-drop k (length "CTGTL-")) v))
-                  acc))
-              (ht-create)))))
+(defun ctgtl--entry-to-log-ht--reducer (acc p)
+  (let* ((ob (cadr p))
+         (k  (plist-get ob :key))
+         (v  (plist-get ob :value)))
+    (when (s-prefix-p "CTGTL-" k)
+      (ht-set acc
+              (->> (seq-drop k (length "CTGTL-"))
+                   (s-downcase)
+                   (s-concat ":")
+                   (intern-soft))
+              v))
+    acc))
 
 (defun ctgtl-util-completing-read (prompt obs &optional to-str)
   "Like completing-read, but allow the user to select arbitrary items.
