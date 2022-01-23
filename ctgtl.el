@@ -218,11 +218,49 @@ Return the number of lines written to the file"
     (insert s)
     (org-ml-parse-headlines 'all)))
 
-(defun ctgtl--find-files-period (_period)
-  "Find the log files for the given period.
+(defun ctgtl--find-files-period (period)
+  "Find the log files for the given period."
+  (-let* ((st   (ctgtl--dt-or-ins-to-strdate (car period)))
+          (en   (ctgtl--dt-or-ins-to-strdate (cadr period)))
+          (_err (when (not (or (s-less-p st en) (s-equals-p st en)))
+                  (error (format "'%s' is not less or equal than '%s" st en))))
+          (sst  (s-left 7 st))
+          (sen  (s-left 7 en))
+          (dis  (f-entries
+                 ctgtl-directory
+                 (lambda (d)
+                   (let ((dir (f-filename d)))
+                     (and (f-dir-p d)
+                          (s-matches-p "^[0-9]\\{4\\}\\-[0-9]\\{2\\}$" dir)
+                          (or (s-less-p sst dir) (s-equals-p sst dir))
+                          (or (s-less-p dir sen) (s-equals-p dir sen)))))
+                 nil)))
+    (->> dis
+         (--map (ctgtl--find-files-period-dir st en it))
+         (identity)
+         (apply #'-concat)
+         (identity))))
 
-FIXME the current implementation returns all files, which is wasteful."
-  (f-files ctgtl-directory (lambda (f) (s-ends-with-p ".org" f)) t))
+
+(defun ctgtl--find-files-period-dir (start end dir)
+  (let ((dlessp  (lambda (s1 s2)
+                   (let ((ss1 (s-left 10 s1))
+                         (ss2 (s-left 10 s2)))
+                     (or (s-equals-p ss1 ss2)
+                         (s-less-p ss1 ss2))))))
+    (f-files dir
+             (lambda (f)
+               (let ((file (f-filename f)))
+                 (and (s-suffix-p ".org" file)
+                      (funcall dlessp start file)
+                      (funcall dlessp file end)))))))
+
+(defun ctgtl--dt-or-ins-to-strdate (dt-or-ins)
+  "Returns a string representing a date from a org date of ts- instant"
+  (let ((tt (if (stringp dt-or-ins)
+                (org-read-date nil nil dt-or-ins)
+              (ts-format "%Y-%m-%d" dt-or-ins))))
+    tt))
 
 (defun ctgtl--concatenate-file-contents (files)
   "Concatenate the content of the FILES on a single string."
