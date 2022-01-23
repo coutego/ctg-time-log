@@ -193,24 +193,28 @@ Return the number of lines written to the file"
        (ctgtl--find-files-period)
        (ctgtl--concatenate-file-contents)
        (ctgtl--org-string-to-headlines)
-       (--filter (ctgtl--timestamp-in-period-p
+       (--filter (ctgtl--date-in-period-p
                   (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" it)
                   period))))
 
 (defun ctgtl--get-entries-period-with-duration (period)
-  "Same as ctgtl--get-entries-period, but it add duration to the header"
+  "Same as ctgtl--get-entries-period, but it add duration to the header.
+
+Thid function assumes that the last entry is a break and can be dropped,
+so it does."
   (->> (ctgtl--get-entries-period period)
        (-sort #'ctgtl--parse-buffer-timestamp-sorter)
        ((lambda (xs) (-interleave xs (cdr xs))))
        (-partition 2)
        (-map #'ctgtl--calculate-duration)))
 
-(defun ctgtl--timestamp-in-period-p (timestamp period)
+(defun ctgtl--date-in-period-p (timestamp period)
   "Checks if the string TIMESTAMP falls in the indicated PERIOD (a list)."
-  (let* ((start (ts-apply :hour 0 :minute 0 :second 0 (car period)))
-         (end   (ts-apply :hour 23 :minute 59 :second 59.999 (cadr period)))
-         (ti    (ts-parse (or timestamp ""))))
-    (and (ts<= start ti) (ts>= end ti))))
+  (let* ((start (ctgtl--dt-or-ins-to-strdate (car period)))
+         (end   (ctgtl--dt-or-ins-to-strdate (cadr period)))
+         (dt    (ctgtl--dt-or-ins-to-strdate (or timestamp ""))))
+    (and (or (s-less-p start dt) (s-equals-p start dt))
+         (or (s-less-p dt end) (s-equals-p dt end)))))
 
 (defun ctgtl--org-string-to-headlines (s)
   "Parse the string s and return a list of headlines."
@@ -256,7 +260,7 @@ Return the number of lines written to the file"
 (defun ctgtl--dt-or-ins-to-strdate (dt-or-ins)
   "Return a string representing a date from a org date of ts- instant"
   (let ((tt (if (stringp dt-or-ins)
-                (org-read-date nil nil dt-or-ins)
+                (s-left 10 (org-read-date nil nil dt-or-ins))
               (ts-format "%Y-%m-%d" dt-or-ins))))
     tt))
 
