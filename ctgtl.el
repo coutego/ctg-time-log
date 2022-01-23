@@ -358,7 +358,7 @@ properties."
               v))
     acc))
 
-(defun ctgtl-util-completing-read (prompt obs &optional to-str)
+(defun ctgtl-util-completing-read (prompt obs &optional to-str default)
   "Like completing-read, but allow the user to select arbitrary items.
 
 OBS must be a seq of arbitrary things of any type T.
@@ -372,7 +372,7 @@ to show the user."
         (progn
           (when ip ;; if ivy-prescient-mode is not bound ip will be nil
             (ivy-prescient-mode -1))
-          (ht-get h (completing-read prompt ss)))
+          (ht-get h (completing-read prompt ss nil nil nil nil default)))
       (when ip
         (ivy-prescient-mode))))) ;; idem
 
