@@ -219,7 +219,7 @@ Return the number of lines written to the file"
     (org-ml-parse-headlines 'all)))
 
 (defun ctgtl--find-files-period (period)
-  "Find the log files for the given period."
+  "Find the log files for the given PERIOD (a list with two dates)."
   (-let* ((st   (ctgtl--dt-or-ins-to-strdate (car period)))
           (en   (ctgtl--dt-or-ins-to-strdate (cadr period)))
           (_err (when (not (or (s-less-p st en) (s-equals-p st en)))
@@ -240,6 +240,7 @@ Return the number of lines written to the file"
          (apply #'-concat))))
 
 (defun ctgtl--find-files-period-dir (start end dir)
+  "Return the list of files containing log entries in the given period."
   (let ((dlessp  (lambda (s1 s2)
                    (let ((ss1 (s-left 10 s1))
                          (ss2 (s-left 10 s2)))
@@ -253,7 +254,7 @@ Return the number of lines written to the file"
                       (funcall dlessp file end)))))))
 
 (defun ctgtl--dt-or-ins-to-strdate (dt-or-ins)
-  "Returns a string representing a date from a org date of ts- instant"
+  "Return a string representing a date from a org date of ts- instant"
   (let ((tt (if (stringp dt-or-ins)
                 (org-read-date nil nil dt-or-ins)
               (ts-format "%Y-%m-%d" dt-or-ins))))
