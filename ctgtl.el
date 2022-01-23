@@ -237,10 +237,7 @@ Return the number of lines written to the file"
                  nil)))
     (->> dis
          (--map (ctgtl--find-files-period-dir st en it))
-         (identity)
-         (apply #'-concat)
-         (identity))))
-
+         (apply #'-concat))))
 
 (defun ctgtl--find-files-period-dir (start end dir)
   (let ((dlessp  (lambda (s1 s2)
