@@ -58,6 +58,17 @@
       (insert "\n** ")
       (evil-append 1))))
 
+(defun ctgtl-get-property-at-point (prop)
+  (let ((pname (format "CTGTL-%s" (ctgtl--keyword-to-string prop))))
+    (org-entry-get (point) pname)))
+
+(defun ctgtl-set-property-at-point (prop val)
+  (let ((pname (format "CTGTL-%s" (ctgtl--keyword-to-string prop)))
+        (vval  (if (or (s-equals-p val "") (s-equals-p val "*NONE*")) nil val)))
+    (if vval
+        (org-set-property pname val )
+      (org-delete-property pname))))
+
 (defun ctgtl-go-current()
   "Go to the current task (end of the log file)."
   (interactive)
