@@ -138,23 +138,6 @@ The arguments should be a plist with keys :project, :type, :title."
          (year-month (format-time-string "%Y-%m")))
     (f-join ctgtl-directory year-month name)))
 
-(defun ctgtl--filter-headline-period (h period)
-  "Filter function for headlines and a given period.
-
-Return t if the heading H is inside PERIOD."
-  (if period
-      (-let [(start end) period]
-        (let* ((start (ts-apply :hour 0 :minute 0 :second 0 start))
-               (end   (ts-apply :hour 23 :minute 59 :second 59.999 end))
-               (time  (if-let ((tm (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" h)))
-                          (ts-parse tm)
-                        nil)))
-          (ts-format start);;
-          (ts-format end)  ;; FIXME: remove
-          (ts-format time) ;;
-          (and time (ts<= start time) (ts>= end time))))
-    t)) ;; else t
-
 (cl-defun ctgtl--calculate-duration (p)
   "Calculate duration of a given period P."
   (let* ((t1 (org-ml-headline-get-node-property "CTGTL-TIMESTAMP" (car p)))
